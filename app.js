@@ -29,6 +29,7 @@
     'Delete': 'நீக்கு', 'Delete this product? It has not been uploaded yet.': 'இந்தப் பொருளை நீக்கவா? இது இன்னும் பதிவேற்றப்படவில்லை.',
     'Could not read that picture': 'அந்தப் படத்தைப் படிக்க முடியவில்லை', 'Only 4 photos per product': 'ஒரு பொருளுக்கு 4 படங்கள் மட்டும்',
     'This shop link is not valid': 'இந்தக் கடை இணைப்பு செல்லாது', 'Upload now': 'இப்போது பதிவேற்று',
+    'Take photo {n} of 4': 'படம் {n} / 4 எடு', 'Done with photos': 'படங்கள் போதும்',
   };
   let lang = localStorage.getItem('lang') || 'en';
   const t = (s, v) => { let r = (lang === 'ta' && TA[s]) || s; if (v) for (const k in v) r = r.split('{' + k + '}').join(v[k]); return r; };
@@ -117,14 +118,23 @@
     $('#photos').innerHTML = h;
     $('#gal-btn').hidden = photos.length >= MAX_PHOTOS;
   }
-  async function addFiles(files) {
+  async function addFiles(files, fromCam = false) {
     for (const f of files) {
       if (photos.length >= MAX_PHOTOS) { toast(t('Only 4 photos per product')); break; }
       try { photos.push(await preparePhoto(f)); } catch (e) { toast(t('Could not read that picture')); }
     }
     drawPhotos();
     $('#err').textContent = '';
+    if (fromCam) offerMore();
   }
+  // after each camera photo, offer the next one straight away (a tap is needed: browsers only open the camera on a tap)
+  function offerMore() {
+    const bar = $('#more-bar');
+    if (photos.length >= MAX_PHOTOS || !photos.length) { bar.hidden = true; return; }
+    $('#more-shot').textContent = '📷 ' + t('Take photo {n} of 4', { n: photos.length + 1 });
+    bar.hidden = false;
+  }
+  const hideMore = () => { $('#more-bar').hidden = true; };
 
   // ---------- form ----------
   function cleanNumber(v) {
@@ -162,6 +172,7 @@
     await putItem(item);
     photos.forEach(p => URL.revokeObjectURL(p.url));
     photos = [];
+    hideMore();
     $('#qty').value = ''; $('#price').value = ''; $('#cost').value = '';
     // the source is usually the same for the next product, so it is kept
     fail('');
@@ -312,6 +323,7 @@
 
   // ---------- wiring ----------
   function showView(v) {
+    hideMore();
     document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
     $('#view-add').hidden = v !== 'add';
     $('#view-list').hidden = v !== 'list';
@@ -320,12 +332,15 @@
   document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showView(b.dataset.view); });
   $('#photos').addEventListener('click', e => {
     const d = e.target.closest('[data-del]');
-    if (d) { const i = +d.dataset.del; URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); drawPhotos(); return; }
+    if (d) { const i = +d.dataset.del; URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); drawPhotos(); if (!photos.length) hideMore(); return; }
     if (e.target.closest('#shot')) $('#cam').click();
   });
   $('#gal-btn').addEventListener('click', () => $('#gal').click());
-  $('#cam').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+  $('#cam').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; if (f.length) addFiles(f, true); else offerMore(); });
+  $('#more-shot').addEventListener('click', () => { hideMore(); $('#cam').click(); });
+  $('#more-done').addEventListener('click', () => { hideMore(); $('#qty').focus(); });
   $('#gal').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+  for (const id of ['qty', 'price', 'cost', 'source']) $('#' + id).addEventListener('focus', hideMore);
   for (const id of ['qty', 'price', 'cost']) {
     $('#' + id).addEventListener('input', e => { const c = cleanNumber(e.target.value); if (c !== e.target.value) e.target.value = c; e.target.classList.remove('bad'); $('#err').textContent = ''; showMargin(); });
   }

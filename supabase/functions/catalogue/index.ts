@@ -10,6 +10,8 @@ const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SE
 const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
 const MODEL = Deno.env.get('CATALOGUE_MODEL') || (GEMINI_KEY ? 'gemini-flash-latest' : 'claude-haiku-5-5');
+// when the main free model is busy, the lighter one is tried
+const GEMINI_MODELS = [MODEL, 'gemini-flash-lite-latest'].filter((m, i, a) => a.indexOf(m) === i);
 const BATCH = 8;          // products per call; cron calls again every few minutes
 const CATEGORIES = ['Biscuits', 'Chips & Snacks', 'Chocolates', 'Ice cream', 'Beverages', 'Dairy', 'Groceries', 'Personal care', 'Household', 'Other'];
 
@@ -42,17 +44,26 @@ async function catalogueOne(row: { id: string; store: string; photo_count: numbe
   if (!pics.length) throw new Error('no photos found');
   let text = '';
   if (GEMINI_KEY) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [...pics.map(d => ({ inline_data: { mime_type: 'image/jpeg', data: d } })), { text: PROMPT }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 800 },
-      }),
-    });
-    if (!r.ok) throw new Error(`vision API ${r.status}: ${(await r.text()).slice(0, 300)}`);
-    const out = await r.json();
-    text = ((out.candidates?.[0]?.content?.parts) || []).map((p: { text?: string }) => p.text || '').join('');
+    let lastErr = '';
+    for (const model of GEMINI_MODELS) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [...pics.map(d => ({ inline_data: { mime_type: 'image/jpeg', data: d } })), { text: PROMPT }] }],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 800 },
+        }),
+      });
+      if (r.ok) {
+        const out = await r.json();
+        text = ((out.candidates?.[0]?.content?.parts) || []).map((p: { text?: string }) => p.text || '').join('');
+        lastErr = '';
+        break;
+      }
+      lastErr = `vision API ${r.status}: ${(await r.text()).slice(0, 300)}`;
+      if (r.status !== 503 && r.status !== 429) break;
+    }
+    if (lastErr) throw new Error(lastErr);
   } else {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -93,8 +104,8 @@ Deno.serve(async req => {
     catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       failed.push({ id: row.id, error: msg });
-      // free-tier limit reached: give the try back and stop; the next cron run continues
-      if (/vision API 429/.test(msg)) {
+      // free-tier limit or model busy: give the try back and stop; the next cron run continues
+      if (/vision API (429|503)/.test(msg)) {
         await sql`update public.submissions set attempts = greatest(attempts - 1, 0) where id = any(${rows.map(r => r.id)}::uuid[]) and status = 'new'`;
         break;
       }
