@@ -1,0 +1,16 @@
+{
+  "name": "Store POS - Add products",
+  "short_name": "Add products",
+  "description": "Take photos of products and enter quantity and price for the shop's stock list.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F5F1",
+  "theme_color": "#0E6B4F",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
