@@ -17,15 +17,16 @@ const CATEGORIES = ['Biscuits', 'Chips & Snacks', 'Chocolates', 'Ice cream', 'Be
 
 const PROMPT = `These photos show one product from a small general store in Tamil Nadu, India (front, back or sides of the same item).
 Reply with JSON only, no other text:
-{"name": "...", "brand": "...", "size": "...", "category": "...", "type": "...", "barcode": "...", "note": "..."}
+{"name": "...", "tamil_name": "...", "brand": "...", "size": "...", "category": "...", "type": "...", "barcode": "...", "note": "..."}
 - name: short shop-style product name with brand and variant, e.g. "Aashirvaad Atta 1kg", "Lays Magic Masala 52g". If nothing is printed (loose item), describe it plainly, e.g. "Loose toor dal".
+- tamil_name: what a Tamil shopkeeper says for this product, in Tamil script, plus the common spoken English-letter form, comma separated, e.g. "தக்காளி, thakkali", "லேஸ் மேஜிக் மசாலா, lays", "துவரம் பருப்பு, thuvaram paruppu".
 - brand: maker brand as printed, or "" if none.
 - size: net weight or volume as printed, e.g. "52 g", "1 kg", "500 ml", or "".
 - category: one of ${CATEGORIES.join(', ')}.
 - type: "Packaged" (factory packed), "Loose" (sold loose or repacked by the shop) or "Perishable" (fresh: fruit, vegetables, milk, bread, eggs, meat).
 - barcode: the digits under the barcode if you can read every digit clearly (8, 12 or 13 digits), else "".
 - note: anything the shop owner should check, e.g. "MRP Rs 20 printed", "photo blurry", or "".
-Do not guess a barcode. Use English for all fields.`;
+Do not guess a barcode. Use English for all fields except tamil_name.`;
 
 function toB64(buf: Uint8Array) {
   let s = '';
@@ -83,7 +84,7 @@ async function catalogueOne(row: { id: string; store: string; photo_count: numbe
   const type = ['Packaged', 'Loose', 'Perishable'].includes(j.type) ? j.type : null;
   await sql`update public.submissions set
       status = 'catalogued', name = coalesce(typed_name, ${clean(j.name) || null}), brand = ${clean(j.brand) || null}, size = ${clean(j.size, 40) || null},
-      category = ${category}, item_type = ${type}, barcode = ${barcode}, ai_note = ${clean(j.note, 300) || null},
+      tamil_name = ${clean(j.tamil_name) || null}, category = ${category}, item_type = ${type}, barcode = ${barcode}, ai_note = ${clean(j.note, 300) || null},
       catalogued_at = now()
     where id = ${row.id}`;
 }
