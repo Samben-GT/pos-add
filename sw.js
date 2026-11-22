@@ -1,5 +1,5 @@
 // Keeps the app working without internet. App files are served from the cache and refreshed in the background.
-const CACHE = 'pos-add-v4';
+const CACHE = 'pos-add-v5';
 const FILES = ['./', 'index.html', 'app.css', 'app.js', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-maskable.png'];
 
 self.addEventListener('install', e => {

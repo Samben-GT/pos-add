@@ -34,7 +34,8 @@ function toB64(buf: Uint8Array) {
 }
 const clean = (v: unknown, n = 120) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
 
-async function catalogueOne(row: { id: string; store: string; photo_count: number }) {
+async function catalogueOne(row: { id: string; store: string; photo_count: number; typed_name: string | null }) {
+  const prompt = row.typed_name ? PROMPT + `\nThe shop calls this product "${row.typed_name}"; keep that wording in the name unless the photo clearly shows it is wrong.` : PROMPT;
   const pics: string[] = [];
   for (let i = 1; i <= row.photo_count; i++) {
     const { data, error } = await sb.storage.from('photos').download(`${row.store}/${row.id}/${i}.jpg`);
@@ -50,7 +51,7 @@ async function catalogueOne(row: { id: string; store: string; photo_count: numbe
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [...pics.map(d => ({ inline_data: { mime_type: 'image/jpeg', data: d } })), { text: PROMPT }] }],
+          contents: [{ role: 'user', parts: [...pics.map(d => ({ inline_data: { mime_type: 'image/jpeg', data: d } })), { text: prompt }] }],
           generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 800 },
         }),
       });
@@ -68,7 +69,7 @@ async function catalogueOne(row: { id: string; store: string; photo_count: numbe
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 400, messages: [{ role: 'user', content: [...pics.map(d => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: d } })), { type: 'text', text: PROMPT }] }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 400, messages: [{ role: 'user', content: [...pics.map(d => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: d } })), { type: 'text', text: prompt }] }] }),
     });
     if (!r.ok) throw new Error(`vision API ${r.status}: ${(await r.text()).slice(0, 300)}`);
     const out = await r.json();
@@ -81,7 +82,7 @@ async function catalogueOne(row: { id: string; store: string; photo_count: numbe
   const category = CATEGORIES.includes(j.category) ? j.category : 'Other';
   const type = ['Packaged', 'Loose', 'Perishable'].includes(j.type) ? j.type : null;
   await sql`update public.submissions set
-      status = 'catalogued', name = ${clean(j.name) || null}, brand = ${clean(j.brand) || null}, size = ${clean(j.size, 40) || null},
+      status = 'catalogued', name = coalesce(typed_name, ${clean(j.name) || null}), brand = ${clean(j.brand) || null}, size = ${clean(j.size, 40) || null},
       category = ${category}, item_type = ${type}, barcode = ${barcode}, ai_note = ${clean(j.note, 300) || null},
       catalogued_at = now()
     where id = ${row.id}`;
@@ -97,7 +98,7 @@ Deno.serve(async req => {
   const rows = await sql`update public.submissions set attempts = attempts + 1
      where id in (select id from public.submissions where status = 'new' and attempts < 3
                   order by created_at limit ${BATCH} for update skip locked)
-     returning id, store, photo_count`;
+     returning id, store, photo_count, typed_name`;
   const done: string[] = [], failed: { id: string; error: string }[] = [];
   for (const row of rows) {
     try { await catalogueOne(row); done.push(row.id); }

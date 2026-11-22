@@ -38,7 +38,7 @@ Deno.serve(async req => {
     const all = url.searchParams.get('all') === '1';
     const statuses = all ? ['new', 'catalogued', 'failed'] : ['catalogued', 'failed'];
     const rows = await sql`select id, created_at, qty, price, cost, source, photo_count, status,
-        name, brand, size, category, item_type, barcode, ai_note
+        coalesce(name, typed_name) as name, brand, size, category, item_type, barcode, ai_note
       from public.submissions where store = ${store} and status = any(${statuses})
       order by created_at limit 60`;
     const paths = rows.flatMap(r => Array.from({ length: r.photo_count }, (_, i) => `${store}/${r.id}/${i + 1}.jpg`));

@@ -29,6 +29,7 @@
     'Delete': 'நீக்கு', 'Delete this product? It has not been uploaded yet.': 'இந்தப் பொருளை நீக்கவா? இது இன்னும் பதிவேற்றப்படவில்லை.',
     'Could not read that picture': 'அந்தப் படத்தைப் படிக்க முடியவில்லை', 'Only 4 photos per product': 'ஒரு பொருளுக்கு 4 படங்கள் மட்டும்',
     'This shop link is not valid': 'இந்தக் கடை இணைப்பு செல்லாது', 'Upload now': 'இப்போது பதிவேற்று',
+    'Product name': 'பொருளின் பெயர்', '(optional)': '(விருப்பம்)', 'e.g. Toor dal 1 kg': 'எ.கா. துவரம் பருப்பு 1 கிலோ',
     'Take photo {n} of 4': 'படம் {n} / 4 எடு', 'Done with photos': 'படங்கள் போதும்',
     'Add My Store to your home screen': 'My Store-ஐ முகப்புத் திரையில் சேர்க்கவும்', 'Opens like an app, works without internet.': 'ஆப் போல திறக்கும், இணையம் இல்லாமலும் வேலை செய்யும்.',
     'Install': 'நிறுவு', 'Tap ⋮ (top right) then "Add to Home screen" or "Install app".': '⋮ (மேல் வலது) தட்டி "Add to Home screen" அல்லது "Install app" தேர்வு செய்யவும்.',
@@ -167,7 +168,7 @@
     const item = {
       localId: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       createdAt: Date.now(), store: STORE,
-      qty, price, cost: cost > 0 ? cost : null, source: $('#source').value.trim(),
+      name: $('#pname').value.trim().slice(0, 120), qty, price, cost: cost > 0 ? cost : null, source: $('#source').value.trim(),
       photos: photos.map(p => p.blob), thumb: photos[0].thumb, nPhotos: photos.length,
       state: 'waiting',
     };
@@ -175,7 +176,7 @@
     photos.forEach(p => URL.revokeObjectURL(p.url));
     photos = [];
     hideMore();
-    $('#qty').value = ''; $('#price').value = ''; $('#cost').value = '';
+    $('#pname').value = ''; $('#qty').value = ''; $('#price').value = ''; $('#cost').value = '';
     // the source is usually the same for the next product, so it is kept
     fail('');
     showMargin();
@@ -211,7 +212,7 @@
         if (!navigator.onLine) break;
         setSyncLine(t('Uploading...'));
         try {
-          const id = await rpc('submit_product', { p_store: it.store, p_device_key: deviceKey, p_local_id: it.localId, p_qty: it.qty, p_price: it.price, p_cost: it.cost, p_source: it.source, p_photos: it.nPhotos });
+          const id = await rpc('submit_product', { p_store: it.store, p_device_key: deviceKey, p_local_id: it.localId, p_qty: it.qty, p_price: it.price, p_cost: it.cost, p_source: it.source, p_photos: it.nPhotos, p_name: it.name || '' });
           for (let i = 0; i < it.photos.length; i++) await uploadPhoto(`${it.store}/${id}/${i + 1}.jpg`, it.photos[i]);
           await rpc('finish_product', { p_id: id, p_device_key: deviceKey });
           it.remoteId = id; it.state = 'sent'; it.sentAt = Date.now(); it.error = '';
@@ -259,7 +260,7 @@
     if (it.remote && it.remote.status === 'catalogued') return ['done', t('Catalogued')];
     return ['sent', t('Uploaded')];
   }
-  const titleOf = it => (it.remote && it.remote.name) || t('Product') + ' · ' + new Date(it.createdAt).toLocaleString(lang === 'ta' ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  const titleOf = it => (it.remote && it.remote.name) || it.name || t('Product') + ' · ' + new Date(it.createdAt).toLocaleString(lang === 'ta' ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   async function renderList() {
     const items = (await allItems()).sort((a, b) => b.createdAt - a.createdAt);
     const today = new Date().toDateString();
@@ -340,13 +341,13 @@
   $('#gal-btn').addEventListener('click', () => $('#gal').click());
   $('#cam').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; if (f.length) addFiles(f, true); else offerMore(); });
   $('#more-shot').addEventListener('click', () => { hideMore(); $('#cam').click(); });
-  $('#more-done').addEventListener('click', () => { hideMore(); $('#qty').focus(); });
+  $('#more-done').addEventListener('click', () => { hideMore(); $('#pname').focus(); });
   $('#gal').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
-  for (const id of ['qty', 'price', 'cost', 'source']) $('#' + id).addEventListener('focus', hideMore);
+  for (const id of ['pname', 'qty', 'price', 'cost', 'source']) $('#' + id).addEventListener('focus', hideMore);
   for (const id of ['qty', 'price', 'cost']) {
     $('#' + id).addEventListener('input', e => { const c = cleanNumber(e.target.value); if (c !== e.target.value) e.target.value = c; e.target.classList.remove('bad'); $('#err').textContent = ''; showMargin(); });
   }
-  const order = ['qty', 'price', 'cost', 'source'];
+  const order = ['pname', 'qty', 'price', 'cost', 'source'];
   order.slice(0, -1).forEach((id, i) => $('#' + id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#' + order[i + 1]).focus(); } }));
   $('#save').addEventListener('click', save);
   $('#list').addEventListener('click', e => { const r = e.target.closest('[data-open]'); if (r) openItem(r.dataset.open); });

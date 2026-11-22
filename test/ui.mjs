@@ -43,6 +43,7 @@ await page.type('#qty', '2a4');
 ok(await page.inputValue('#qty') === '24', 'numbers only in quantity');
 await page.click('#save');
 ok((await page.textContent('#err')).includes('selling price'), 'selling price is required');
+await page.fill('#pname', 'Aashirvaad Atta 1kg');
 await page.type('#price', '35'); await page.type('#cost', '30');
 ok((await page.textContent('#margin')).includes('5'), 'margin shown');
 await page.fill('#source', 'Ganesh Agencies\n98400 11111');
@@ -50,7 +51,8 @@ await page.screenshot({ path: root + 'test/01-form.png' });
 await page.click('#save');
 await until(() => page.evaluate(() => window.__posAdd.allItems().then(a => a.length === 1 && a[0].state === 'sent')));
 ok(fake.files.size === 3 && [...fake.files].every(f => /^shop1\/id0\/[1-3]\.jpg$/.test(f)), 'photos uploaded to shop1/<id>/1..3.jpg');
-ok(fake.rows[0].p_qty === 24 && fake.rows[0].p_price === 35 && fake.rows[0].p_cost === 30 && fake.rows[0].status === 'new', 'product uploaded and finished');
+ok(fake.rows[0].p_qty === 24 && fake.rows[0].p_price === 35 && fake.rows[0].p_cost === 30 && fake.rows[0].status === 'new' && fake.rows[0].p_name === 'Aashirvaad Atta 1kg', 'product uploaded with the typed name');
+ok(await page.inputValue('#pname') === '', 'name cleared for the next product');
 ok(await page.inputValue('#source') === 'Ganesh Agencies\n98400 11111' && await page.inputValue('#qty') === '', 'form cleared, source kept');
 // offline product
 fake.online = false;
