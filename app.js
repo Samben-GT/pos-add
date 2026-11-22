@@ -30,6 +30,8 @@
     'Could not read that picture': 'அந்தப் படத்தைப் படிக்க முடியவில்லை', 'Only 4 photos per product': 'ஒரு பொருளுக்கு 4 படங்கள் மட்டும்',
     'This shop link is not valid': 'இந்தக் கடை இணைப்பு செல்லாது', 'Upload now': 'இப்போது பதிவேற்று',
     'Take photo {n} of 4': 'படம் {n} / 4 எடு', 'Done with photos': 'படங்கள் போதும்',
+    'Add My Store to your home screen': 'My Store-ஐ முகப்புத் திரையில் சேர்க்கவும்', 'Opens like an app, works without internet.': 'ஆப் போல திறக்கும், இணையம் இல்லாமலும் வேலை செய்யும்.',
+    'Install': 'நிறுவு', 'Tap ⋮ (top right) then "Add to Home screen" or "Install app".': '⋮ (மேல் வலது) தட்டி "Add to Home screen" அல்லது "Install app" தேர்வு செய்யவும்.',
   };
   let lang = localStorage.getItem('lang') || 'en';
   const t = (s, v) => { let r = (lang === 'ta' && TA[s]) || s; if (v) for (const k in v) r = r.split('{' + k + '}').join(v[k]); return r; };
@@ -349,6 +351,24 @@
   $('#save').addEventListener('click', save);
   $('#list').addEventListener('click', e => { const r = e.target.closest('[data-open]'); if (r) openItem(r.dataset.open); });
   $('#lang-btn').addEventListener('click', () => { lang = lang === 'ta' ? 'en' : 'ta'; localStorage.setItem('lang', lang); translatePage(); drawPhotos(); showMargin(); refreshCounts(); });
+
+  // ---------- install to home screen ----------
+  const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let installEvent = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; if (!standalone() && STORE) $('#install').hidden = false; });
+  window.addEventListener('appinstalled', () => { $('#install').hidden = true; installEvent = null; });
+  $('#install-btn').addEventListener('click', async () => {
+    if (installEvent) {
+      installEvent.prompt();
+      const r = await installEvent.userChoice.catch(() => null);
+      if (r && r.outcome === 'accepted') $('#install').hidden = true;
+      installEvent = null;
+    } else {
+      $('#install-help').textContent = t('Tap ⋮ (top right) then "Add to Home screen" or "Install app".');
+    }
+  });
+  // Chrome may not offer its own prompt straight away; show the banner anyway with the menu steps
+  setTimeout(() => { if (!standalone() && STORE && $('#install').hidden) $('#install').hidden = false; }, 4000);
 
   translatePage();
   drawPhotos();

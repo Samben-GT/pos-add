@@ -74,3 +74,9 @@ input:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--
 
 .more-bar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:#fff;border-top:1px solid var(--line);padding:10px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(0,0,0,.08);display:grid;grid-template-columns:2fr 1fr;gap:10px}
 .more-bar .btn{margin:0;padding:15px 8px;font-size:17px}
+
+.install{display:flex;align-items:center;gap:12px;margin:10px 12px 0;padding:12px 14px;background:#FFF7E0;border:1.5px solid #F2B33D;border-radius:14px}
+.install div{flex:1;display:flex;flex-direction:column;gap:2px}
+.install b{font-size:16px}
+.install small{color:var(--ink2);font-size:13px}
+.install .btn{width:auto;margin:0;padding:11px 18px;font-size:16px}
