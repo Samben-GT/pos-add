@@ -1,6 +1,6 @@
 {
-  "name": "Store POS - Add products",
-  "short_name": "Add products",
+  "name": "My Store",
+  "short_name": "My Store",
   "description": "Take photos of products and enter quantity and price for the shop's stock list.",
   "start_url": "./",
   "scope": "./",

@@ -28,6 +28,7 @@ const { execSync } = await import('node:child_process');
 execSync(`python3 -c "from PIL import Image; [Image.new('RGB',(2000,1500),c).save('/tmp/p%d.jpg'%i) for i,c in enumerate(['red','green','blue','orange','purple'])]"`);
 await page.goto('http://localhost:8790/?s=shop1');
 await page.waitForFunction(() => document.querySelector('#store-name').textContent === 'Murugan Stores');
+  await page.waitForSelector('#splash', { state: 'detached', timeout: 5000 });
 ok(true, 'store name shown from the link');
 await page.click('#save');
 ok((await page.textContent('#err')).includes('photo'), 'photo is required');

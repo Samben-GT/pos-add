@@ -337,13 +337,17 @@
 
   translatePage();
   drawPhotos();
+  // loading screen with the shop name
+  const shopName = localStorage.getItem('storeName') || (C.shops || {})[STORE] || '';
+  $('#splash-shop').textContent = shopName;
+  if (shopName) { $('#store-name').textContent = shopName; document.title = shopName + ' · My Store'; }
+  const splashStart = Date.now();
+  window.addEventListener('load', () => setTimeout(() => { $('#splash').classList.add('hide'); setTimeout(() => $('#splash').remove(), 400); }, Math.max(0, 1200 - (Date.now() - splashStart))));
   if (!STORE) {
     $('#view-add').hidden = true; $('.tabs').hidden = true; $('#no-store').hidden = false;
   } else {
-    const cached = localStorage.getItem('storeName');
-    if (cached) $('#store-name').textContent = cached;
     if (navigator.onLine) rpc('store_name', { p_store: STORE }).then(n => {
-      if (n) { localStorage.setItem('storeName', n); $('#store-name').textContent = n; }
+      if (n) { localStorage.setItem('storeName', n); $('#store-name').textContent = n; document.title = n + ' · My Store'; }
       else toast(t('This shop link is not valid'));
     }).catch(() => {});
     refreshCounts();

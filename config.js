@@ -3,4 +3,6 @@
 window.POS_CONFIG = {
   url: 'https://zbunkuxkliftbyzkscil.supabase.co',
   anon: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpidW5rdXhrbGlmdGJ5emtzY2lsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzMjA1MjIsImV4cCI6MjExMDg5NjUyMn0.lRzTFhqpxWBR_lSMOMZx874UJu2dPB3qCjEW5F-Ccik',
+  // shown at once on the loading screen, before the name comes from the server
+  shops: { pethanachi: 'SRI PETHANACHI AMMAN STORE' },
 };
