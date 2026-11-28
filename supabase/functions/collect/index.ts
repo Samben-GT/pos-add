@@ -3,6 +3,7 @@
 //                              (all=1 also returns products not catalogued yet)
 //   GET  ?action=count         how many are waiting, by status
 //   POST {action:'ack', ids}   the shop app has saved these: delete their rows and photos
+//   POST {action:'publish', items}  the shop's stock list for the customer page (replaces the old list)
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import postgres from 'https://deno.land/x/postgresjs@v3.4.5/mod.js';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -66,6 +67,24 @@ Deno.serve(async req => {
     }
     const del = await sql`delete from public.submissions where store = ${store} and id = any(${rows.map(r => r.id)}::uuid[])`;
     return json({ deleted: del.count });
+  }
+
+  // the POS app publishes its stock list (text only) so customers can see what the store sells
+  if (action === 'publish') {
+    const items = (Array.isArray(body.items) ? body.items : []).slice(0, 5000).filter((x: { code?: string; name?: string }) => x && x.code && x.name);
+    const t = (v: unknown, n = 120) => (v == null || v === '' ? null : String(v).slice(0, n));
+    for (let i = 0; i < items.length; i += 500) {
+      const chunk = items.slice(i, i + 500).map((x: Record<string, unknown>) => ({
+        store, code: String(x.code).slice(0, 40), name: String(x.name).slice(0, 120), tamil_name: t(x.tamil_name), brand: t(x.brand, 60),
+        size: t(x.size, 40), category: t(x.category, 40), price: Number(x.price) || 0, in_stock: !!x.in_stock, updated_at: new Date(),
+      }));
+      await sql`insert into public.catalog ${sql(chunk)} on conflict (store, code) do update set
+        name = excluded.name, tamil_name = excluded.tamil_name, brand = excluded.brand, size = excluded.size, category = excluded.category,
+        price = excluded.price, in_stock = excluded.in_stock, updated_at = excluded.updated_at`;
+    }
+    const codes = items.map((x: { code: string }) => String(x.code).slice(0, 40));
+    const del = await sql`delete from public.catalog where store = ${store} and not (code = any(${codes}))`;
+    return json({ published: items.length, removed: del.count });
   }
 
   return json({ error: 'unknown action' }, 400);

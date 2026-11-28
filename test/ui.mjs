@@ -6,7 +6,7 @@ import { join, extname } from 'node:path';
 const root = new URL('..', import.meta.url).pathname;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' };
 const srv = http.createServer((q, s) => { let p = decodeURIComponent(new URL(q.url, 'http://x').pathname); if (p.endsWith('/')) p += 'index.html'; const f = join(root, p); if (!existsSync(f)) { s.writeHead(404); return s.end(); } s.writeHead(200, { 'Content-Type': types[extname(f)] || 'application/octet-stream' }); s.end(readFileSync(f)); }).listen(8790);
-const fake = { rows: [], files: new Set(), online: true };
+const fake = { rows: [], files: new Set(), online: true, pin: '4321', devOk: false, phase: 'onboarding' };
 const until = async (fn, ms = 8000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await new Promise(r => setTimeout(r, 100)); } throw new Error('timed out'); };
 const ok = (c, m) => { if (!c) { console.error('FAIL ' + m); process.exitCode = 1; } else console.log('  ok  ' + m); };
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1243/chrome-linux64/chrome' });
@@ -17,6 +17,8 @@ await page.route('https://zbunkuxkliftbyzkscil.supabase.co/**', async route => {
   if (!fake.online) return route.abort('internetdisconnected');
   const u = new URL(route.request().url()); const body = route.request().postDataJSON ? (() => { try { return route.request().postDataJSON(); } catch { return null; } })() : null;
   if (u.pathname.endsWith('/rpc/store_name')) return route.fulfill({ json: 'Murugan Stores' });
+  if (u.pathname.endsWith('/rpc/store_info')) return route.fulfill({ json: { name: 'Murugan Stores', phase: fake.phase, needs_pin: !!fake.pin, device_ok: fake.devOk } });
+  if (u.pathname.endsWith('/rpc/check_pin')) { const ok = body.p_pin === fake.pin; if (ok) fake.devOk = true; return route.fulfill({ json: ok }); }
   if (u.pathname.endsWith('/rpc/submit_product')) { let r = fake.rows.find(x => x.local_id === body.p_local_id); if (!r) { r = { id: 'id' + fake.rows.length, local_id: body.p_local_id, status: 'uploading', ...body }; fake.rows.push(r); } return route.fulfill({ json: r.id }); }
   if (u.pathname.includes('/storage/v1/object/photos/')) { fake.files.add(u.pathname.split('/photos/')[1]); return route.fulfill({ json: { Key: 'x' } }); }
   if (u.pathname.endsWith('/rpc/finish_product')) { const r = fake.rows.find(x => x.id === body.p_id); r.status = 'new'; return route.fulfill({ json: true }); }
@@ -30,6 +32,12 @@ await page.goto('http://localhost:8790/?s=shop1');
 await page.waitForFunction(() => document.querySelector('#store-name').textContent === 'Murugan Stores');
   await page.waitForSelector('#splash', { state: 'detached', timeout: 5000 });
 ok(true, 'store name shown from the link');
+await page.waitForSelector('#pin-view:not([hidden])');
+ok(await page.$eval('#view-add', e => e.hidden), 'form hidden until the PIN is entered');
+await page.fill('#pin-input', '1111'); await page.click('#pin-go'); await page.waitForTimeout(300);
+ok((await page.textContent('#pin-err')).includes('Wrong'), 'wrong PIN refused');
+await page.fill('#pin-input', '4321'); await page.click('#pin-go'); await page.waitForTimeout(300);
+ok(!(await page.$eval('#view-add', e => e.hidden)) && await page.$eval('#pin-view', e => e.hidden), 'right PIN opens the form');
 await page.click('#save');
 ok((await page.textContent('#err')).includes('photo'), 'photo is required');
 await page.setInputFiles('#gal', ['/tmp/p0.jpg', '/tmp/p1.jpg', '/tmp/p2.jpg', '/tmp/p3.jpg', '/tmp/p4.jpg']);
@@ -91,5 +99,8 @@ await page.click('#lang-btn');
 ok((await page.textContent('.tabs')).includes('என் பொருட்கள்'), 'Tamil switch');
 await page.click('.tabs [data-view="add"]');
 await page.screenshot({ path: root + 'test/04-tamil.png' });
+fake.phase = 'live';
+await page.reload(); await page.waitForTimeout(1500);
+ok(!(await page.$eval('#closed-view', e => e.hidden)) && await page.$eval('#view-add', e => e.hidden), 'live store: shop link shows closed');
 ok(errors.length === 0, 'no page errors ' + errors.join('|'));
 await b.close(); srv.close();

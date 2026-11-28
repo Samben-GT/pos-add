@@ -60,6 +60,21 @@
     <div id="list"></div>
   </section>
 
+  <section id="pin-view" hidden>
+    <div class="empty">
+      <h2 data-t>Enter the shop PIN</h2>
+      <p data-t>Ask the shop owner for the PIN. You need it only once on this phone.</p>
+      <input id="pin-input" inputmode="numeric" maxlength="6" autocomplete="off" style="text-align:center;font-size:28px;letter-spacing:8px;max-width:220px;margin:10px auto;display:block">
+      <div class="err" id="pin-err"></div>
+      <button type="button" class="btn primary" id="pin-go" style="max-width:260px" data-t>Continue</button>
+    </div>
+  </section>
+  <section id="closed-view" hidden>
+    <div class="empty">
+      <h2 data-t>Adding stock is finished for this shop</h2>
+      <p data-t>The shop now uses the billing app. Products waiting on this phone will still upload if the shop owner reopens the link.</p>
+    </div>
+  </section>
   <section id="no-store" hidden>
     <div class="empty">
       <h2 data-t>Open the link from your shop owner</h2>

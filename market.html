@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E6B4F">
+<title>My Store · Shops near you</title>
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-title"><b data-t>Shops near you</b><small id="sub"></small></div>
+  <button class="lang" id="lang-btn" type="button">தமிழ்</button>
+</header>
+<nav class="tabs" style="grid-template-columns:repeat(3,1fr)">
+  <button type="button" class="on" data-view="search" data-t>Find items</button>
+  <button type="button" data-view="stores" data-t>Shops</button>
+  <button type="button" data-view="rates" data-t>Market rates</button>
+</nav>
+<main>
+  <section id="v-search">
+    <input id="q" type="search" placeholder="Search: tomato, தக்காளி, Lays..." data-t-ph autocomplete="off">
+    <select id="area" style="width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1.5px solid var(--line);font-size:16px;background:#fff"></select>
+    <div id="results"></div>
+  </section>
+  <section id="v-stores" hidden><button class="link" id="near" data-t>Sort by distance from me</button><div id="stores"></div></section>
+  <section id="v-rates" hidden>
+    <p class="note" style="text-align:left" data-t>Wholesale mandi prices per kg in Tamil Nadu from the Government of India (data.gov.in, Agmarknet). Shop prices are usually higher.</p>
+    <div id="rates"></div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+<script src="config.js"></script>
+<script src="market.js"></script>
+</body>
+</html>

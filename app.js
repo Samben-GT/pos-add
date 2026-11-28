@@ -30,6 +30,9 @@
     'Could not read that picture': 'அந்தப் படத்தைப் படிக்க முடியவில்லை', 'Only 4 photos per product': 'ஒரு பொருளுக்கு 4 படங்கள் மட்டும்',
     'This shop link is not valid': 'இந்தக் கடை இணைப்பு செல்லாது', 'Upload now': 'இப்போது பதிவேற்று',
     'Product name': 'பொருளின் பெயர்', '(optional)': '(விருப்பம்)', 'e.g. Toor dal 1 kg': 'எ.கா. துவரம் பருப்பு 1 கிலோ',
+    'Enter the shop PIN': 'கடை PIN-ஐ உள்ளிடவும்', 'Ask the shop owner for the PIN. You need it only once on this phone.': 'கடை உரிமையாளரிடம் PIN கேளுங்கள். இந்த போனில் ஒருமுறை மட்டும் போதும்.',
+    'Continue': 'தொடர்க', 'Wrong PIN': 'தவறான PIN', 'Adding stock is finished for this shop': 'இந்தக் கடைக்கு ஸ்டாக் சேர்ப்பது முடிந்தது',
+    'The shop now uses the billing app. Products waiting on this phone will still upload if the shop owner reopens the link.': 'கடை இப்போது பில்லிங் ஆப்பைப் பயன்படுத்துகிறது. உரிமையாளர் இணைப்பை மீண்டும் திறந்தால், இந்த போனில் காத்திருக்கும் பொருட்கள் பதிவேற்றப்படும்.',
     'Take photo {n} of 4': 'படம் {n} / 4 எடு', 'Done with photos': 'படங்கள் போதும்',
     'Add My Store to your home screen': 'My Store-ஐ முகப்புத் திரையில் சேர்க்கவும்', 'Opens like an app, works without internet.': 'ஆப் போல திறக்கும், இணையம் இல்லாமலும் வேலை செய்யும்.',
     'Install': 'நிறுவு', 'Tap ⋮ (top right) then "Add to Home screen" or "Install app".': '⋮ (மேல் வலது) தட்டி "Add to Home screen" அல்லது "Install app" தேர்வு செய்யவும்.',
@@ -222,6 +225,8 @@
         } catch (e) {
           lastSyncError = String(e.message || e);
           // a refused product (bad data) is marked so it does not block the rest; network errors are retried later
+          // PIN missing or shop link closed: keep everything waiting on the phone
+          if (/enter the store PIN|uploads are closed/.test(lastSyncError)) { localStorage.removeItem('storeInfo'); break; }
           if (e.status && e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429) { it.error = lastSyncError.slice(0, 200); await putItem(it); continue; }
           break;
         }
@@ -382,10 +387,34 @@
   if (!STORE) {
     $('#view-add').hidden = true; $('.tabs').hidden = true; $('#no-store').hidden = false;
   } else {
-    if (navigator.onLine) rpc('store_name', { p_store: STORE }).then(n => {
-      if (n) { localStorage.setItem('storeName', n); $('#store-name').textContent = n; document.title = n + ' · My Store'; }
-      else toast(t('This shop link is not valid'));
+    // store name, stage (adding stock or live) and whether this phone needs the PIN
+    const gate = info => {
+      const pinNeeded = info.needs_pin && !info.device_ok, closed = info.phase === 'live';
+      $('#pin-view').hidden = !pinNeeded || closed;
+      $('#closed-view').hidden = !closed;
+      $('#view-add').hidden = pinNeeded || closed || !$('#view-list').hidden;
+      $('.tabs').hidden = pinNeeded || closed;
+      if (pinNeeded && !closed) setTimeout(() => $('#pin-input').focus(), 300);
+    };
+    const cachedInfo = JSON.parse(localStorage.getItem('storeInfo') || 'null');
+    if (cachedInfo) gate(cachedInfo);
+    if (navigator.onLine) rpc('store_info', { p_store: STORE, p_device_key: deviceKey }).then(info => {
+      if (!info) { toast(t('This shop link is not valid')); return; }
+      localStorage.setItem('storeInfo', JSON.stringify(info));
+      localStorage.setItem('storeName', info.name); $('#store-name').textContent = info.name; document.title = info.name + ' · My Store';
+      gate(info);
     }).catch(() => {});
+    $('#pin-go').addEventListener('click', async () => {
+      const pin = $('#pin-input').value.replace(/\D/g, '');
+      try {
+        const ok = await rpc('check_pin', { p_store: STORE, p_device_key: deviceKey, p_pin: pin });
+        if (!ok) { $('#pin-err').textContent = t('Wrong PIN'); return; }
+        const info = { ...(JSON.parse(localStorage.getItem('storeInfo') || '{}')), device_ok: true };
+        localStorage.setItem('storeInfo', JSON.stringify(info));
+        gate(info);
+        sync();
+      } catch (e) { $('#pin-err').textContent = String(e.message || e).replace(/^.*"message":"([^"]+)".*$/, '$1'); }
+    });
     refreshCounts();
     sync().then(refreshStatus);
   }
